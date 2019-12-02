@@ -1,0 +1,21 @@
+{
+  "name": "mock-response.macro",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/lintuming/mockResponse.macro.git",
+  "author": "lintuming <lintuming@tuzhanai.com>",
+  "license": "MIT",
+  "dependencies": {
+    "babel-plugin-macros": "^2.7.1",
+    "faker": "^4.1.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.7.4",
+    "@babel/helper-plugin-test-runner": "^7.7.4",
+    "@babel/plugin-syntax-flow": "^7.7.4",
+    "jest": "^24.9.0"
+  },
+  "jest": {
+    "testRegex": "./__tests__/index.js"
+  }
+}
