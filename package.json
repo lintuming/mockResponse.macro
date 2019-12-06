@@ -16,6 +16,6 @@
     "jest": "^24.9.0"
   },
   "jest": {
-    "testRegex": "./__tests__/index.js"
+    "testRegex": "./__tests__/(index|throwError.test).js"
   }
 }

@@ -1,4 +1,4 @@
-const { createMacro, MacroError } = require('babel-plugin-macros');
+const { createMacro, MacroError } = require("babel-plugin-macros");
 
 module.exports = createMacro(function({ references, state, babel }) {
   function Assert(test, msg) {
@@ -21,40 +21,39 @@ module.exports = createMacro(function({ references, state, babel }) {
         return mocker;
       }
     }
-    return undefined;
   }
   function findMockerInComments(leadingComments, regExp) {
     if (!leadingComments) return;
-    let result = undefined;
     for (let comment of leadingComments) {
       const match = regExp.exec(comment.value);
       if (match) {
-        result = match[1];
-        break;
+        return match[1];
       }
     }
-    return result;
   }
   //generate the AST node from the GenericType
   function genGenericType(fakerIndentifier, id, typeParameters) {
     switch (id.name) {
-      case 'Number':
+      case "Number":
         return babel.template.expression(`%%FAKER%%.random.number()`)({
           FAKER: fakerIndentifier
         });
-      case 'Boolean':
+      case "Boolean":
         return babel.template.expression(`%%FAKER%%.random.boolean()`)({
           FAKER: fakerIndentifier
         });
-      case 'String':
+      case "String":
         return babel.template.expression(`%%FAKER%%.random.word()`)({
           FAKER: fakerIndentifier
         });
-      case 'Null':
+      case "Null":
         return babel.types.nullLiteral();
-      case 'undefined':
-        return babel.types.undefinedLiteral();
-      case 'Array': {
+      case "undefined":
+        return babel.types.unaryExpression(
+          "void",
+          babel.types.numericLiteral(0)
+        );
+      case "Array": {
         const length =
           typeParameters.params[1] && typeParameters.params[1].value >= 0
             ? typeParameters.params[1].value
@@ -66,16 +65,16 @@ module.exports = createMacro(function({ references, state, babel }) {
             .map(() => node)
         );
       }
-      case 'Object':
+      case "Object":
         return babel.types.objectExpression([]);
       default:
-        throw new MacroError('Unexpected typeDef');
+        throw new MacroError("Unexpected typeDef");
     }
   }
   //generate the AST node from the typeAnnotation
   function genCode(fakerIndentifier, typeDef) {
     switch (typeDef.type) {
-      case 'ObjectTypeAnnotation': {
+      case "ObjectTypeAnnotation": {
         return babel.types.objectExpression(
           typeDef.properties.map(ObjectTypeProperty => {
             return babel.types.objectProperty(
@@ -85,21 +84,21 @@ module.exports = createMacro(function({ references, state, babel }) {
           })
         );
       }
-      case 'StringTypeAnnotation':
+      case "StringTypeAnnotation":
         return babel.template.expression(`%%FAKER%%.random.word()`)({
           FAKER: fakerIndentifier
         });
-      case 'BooleanTypeAnnotation':
+      case "BooleanTypeAnnotation":
         return babel.template.expression(`%%FAKER%%.random.boolean()`)({
           FAKER: fakerIndentifier
         });
-      case 'NumberTypeAnnotation':
+      case "NumberTypeAnnotation":
         return babel.template.expression(`%%FAKER%%.random.number()`)({
           FAKER: fakerIndentifier
         });
-      case 'NullLiteralTypeAnnotation':
+      case "NullLiteralTypeAnnotation":
         return babel.types.nullLiteral();
-      case 'GenericTypeAnnotation': {
+      case "GenericTypeAnnotation": {
         return genGenericType(
           fakerIndentifier,
           typeDef.id,
@@ -107,7 +106,7 @@ module.exports = createMacro(function({ references, state, babel }) {
         );
       }
       default:
-        throw new MacroError('Unexpected typeDef');
+        throw new MacroError("Unexpected typeDef");
     }
   }
 
@@ -117,19 +116,17 @@ module.exports = createMacro(function({ references, state, babel }) {
       globalMocker || defaultMocker
     );
     const fakerIndentifier = state.file.path.scope.generateUidIdentifier(
-      '_faker'
+      "_faker"
     );
     const importStatement = babel.template(`import %%FAKER%% from "faker"`)({
       FAKER: fakerIndentifier
     });
 
-    state.file.path.unshiftContainer('body', importStatement);
-
+    let isMockResponseUsed = false;
     references.MockResponse.forEach(function(reference) {
-
       Assert(
-        reference.parent.type === 'GenericTypeAnnotation',
-        'Must use as a generic type, eg: mockResponse<{ a: number >}'
+        reference.parent.type === "GenericTypeAnnotation",
+        "Must use as a generic type, eg: mockResponse<{ a: number >}"
       );
 
       const functionDeclaration = reference.getFunctionParent();
@@ -137,7 +134,7 @@ module.exports = createMacro(function({ references, state, babel }) {
       const customeMocker = findMockerInComments(
         functionDeclaration.node.leadingComments,
         /(?<=@MockResponse)`(.+)`/ms,
-        'debug'
+        "debug"
       );
       let customeTemplate = undefined;
       if (customeMocker) {
@@ -146,15 +143,15 @@ module.exports = createMacro(function({ references, state, babel }) {
 
       Assert(
         functionDeclaration &&
-          functionDeclaration.get('returnType').isAncestor(reference),
-        'Must use as a return type of a function, eg: function foo(): mock<{ a: number }> { }'
+          functionDeclaration.get("returnType").isAncestor(reference),
+        "Must use as a return type of a function, eg: function foo(): mock<{ a: number }> { }"
       );
 
       const GenericTypeAnnotation = reference.parentPath;
-      const typeDef = GenericTypeAnnotation.get('typeParameters.params.0').node;
-      const shouldMock = GenericTypeAnnotation.get('typeParameters.params.1');
+      const typeDef = GenericTypeAnnotation.get("typeParameters.params.0").node;
+      const shouldMock = GenericTypeAnnotation.get("typeParameters.params.1");
 
-      functionDeclaration.get('returnType').remove();
+      functionDeclaration.get("returnType").remove();
 
       if (
         shouldMock &&
@@ -162,11 +159,11 @@ module.exports = createMacro(function({ references, state, babel }) {
       ) {
         return;
       }
-
+      isMockResponseUsed = true;
       const template = customeTemplate || defaultTemplate;
-    
-      functionDeclaration.get('body').unshiftContainer(
-        'body',
+
+      functionDeclaration.get("body").unshiftContainer(
+        "body",
         babel.types.returnStatement(
           template({
             mockData: genCode(fakerIndentifier, typeDef)
@@ -174,5 +171,8 @@ module.exports = createMacro(function({ references, state, babel }) {
         )
       );
     });
+    if (isMockResponseUsed) {
+      state.file.path.unshiftContainer("body", importStatement);
+    }
   }
 });
